@@ -1,35 +1,31 @@
 ---
 name: continuity
-description: "Use when ongoing work may cross context, session, or agent boundaries. Keep a small durable Markdown memory of current state, important facts/decisions, evidence, blockers, and next action so future agents can resume without rediscovery. Do not use for trivial one-shot work."
+description: "Preserve minimal durable state for ongoing work that may cross context, session, or agent boundaries. Use when losing findings, decisions, blockers, generated artifacts, or the next action would cause rediscovery or mistakes. Resume from existing Continuity before repeating investigation. Skip trivial one-shot work."
 ---
 
 # Continuity
 
-Keep a **small durable work-memory file** for work that may need to resume later.
+Preserve the **minimum trustworthy state a future agent needs to resume correctly**.
 
-The goal is not to record what happened. The goal is to preserve the **minimum state a future agent needs to continue correctly**.
+Persist information whose loss would cause meaningful rediscovery, mistakes, or ambiguity. Maintain current truth; do not keep a diary.
 
-**Rule:** persist information whose loss would cause meaningful rediscovery, mistakes, or ambiguity. Current state is canonical; timeline is only supporting history.
+## Use
 
-## When to use
+Use Continuity when work may outlive the current context/session, another agent may continue it, or non-obvious work would otherwise be lost.
 
-Use Continuity when work is likely to survive the current context/session, another agent may continue it, or non-obvious investigation/decisions would otherwise be lost.
+Skip trivial one-shot work or state that is obvious from the workspace.
 
-Do not use it for trivial edits, simple questions, or work whose relevant state is obvious from the repo.
-
-## File
-
-If the user gives a path, use it. Otherwise use one stable file for the work:
+Use the path the user provides; otherwise keep one stable file per workstream:
 
 ```text
 .continuity/<slug>.md
 ```
 
-Use `~/.continuity/<slug>.md` only for work that does not belong to one workspace. Do not create a new file just because the date changed.
+Use `~/.continuity/<slug>.md` only for work not tied to one workspace.
 
-## Format
+## Record
 
-Keep the file compact. Omit empty sections.
+Keep it compact. Omit empty sections.
 
 ```md
 # Continuity: <work>
@@ -39,110 +35,57 @@ Keep the file compact. Omit empty sections.
 - Workspace: `<path>`
 
 ## Objective
-- [ ] <desired outcome>
+<desired outcome>
 
-## Current State
-- State: <what is true now>
-- Next: <highest-value next action>
-- Blockers: <none or blockers>
+## State
+- Now: <what is true now>
+- Next: <exact next action>
+- Blocked: <none or blocker>
 
 ## Memory
 - Fact: <durable fact> — Evidence: `<pointer>`
 - Decision: <choice> — Why: <reason>
-- Hypothesis: <unverified idea> — Needs: <how to test>
-- Constraint: <important requirement or assumption>
+- Hypothesis: <unverified idea> — Test: <how to verify>
+- Constraint: <requirement or assumption>
+
+## Artifacts
+- `<path / URL / id>` — <what it is and why it matters>
 
 ## Evidence
-- `<test/commit/file/PR/artifact>` — <short result and version/time if staleness matters>
+- `<file / command / commit / PR / result>` — <short result>
 
-## Timeline
-### <timestamp> - <kind>
-- <important change in state or understanding>
+## Recent Changes
+- <meaningful transition, reversal, or rejected approach>
 ```
 
-## Behavior
+## Rules
 
-### Start or resume
+1. **Resume first.** If relevant Continuity exists, read it before substantive work. Resume from `State > Next`; inspect evidence only as needed.
+2. **Current truth wins.** Authoritative workspace/source state > Continuity > old conversation. If they conflict, verify and repair Continuity.
+3. **Update the model, not the diary.** Change `State` and `Memory` when understanding changes. Never silently promote a hypothesis to fact or leave superseded state as current truth.
+4. **Preserve expensive failures.** Record a rejected approach when repeating it would waste meaningful work, add risk, or cause confusion.
+5. **Keep artifacts discoverable.** Add a reference to every intentional generated artifact: files, patches, reports, plans, screenshots, benchmark outputs, PRs, commits, or other deliverables. Skip only disposable temp/scratch files. Prefer stable paths/URLs/IDs and a short purpose. Do not embed the artifact. If superseded, mark it superseded rather than losing the reference.
+6. **Point to evidence.** Keep concise pointers instead of copying logs or large outputs. Revalidate volatile claims such as branch, HEAD, tests, deployments, benchmarks, or PR state when staleness matters.
+7. **Keep it small.** Remove duplication and stale history. `Recent Changes` is optional and should contain only a few changes still useful for resumption. If a future agent must reconstruct the present from history, consolidate.
+8. **Single writer.** Do not let concurrent agents independently mutate the same Continuity file; serialize updates or use separate workstream files.
+9. **Keep it safe.** Never store secrets, credentials, tokens, private chain-of-thought, giant outputs, or disposable scratch state.
 
-- If Continuity already exists, read it **before** doing substantive work.
-- Resume from `Current State`, especially `Next` and `Blockers`.
-- Inspect timeline or cited evidence only when current state is insufficient or needs verification.
-- Revalidate volatile claims such as branch, HEAD, test status, PR state, deployment state, or benchmark result when staleness matters.
+## Handoff and close
 
-### Update
-
-Update Continuity when the **durable model of the work changes**, for example:
-
-- scope or objective changes,
-- an important fact, decision, hypothesis, constraint, or blocker appears or changes,
-- implementation materially changes the state,
-- verification passes/fails,
-- the next action changes,
-- work pauses, resumes, completes, or is abandoned.
-
-Do not log every command or intermediate thought.
-
-When something changes:
-
-1. Update `Current State` first.
-2. Update/remove affected `Memory` entries so they reflect present truth.
-3. Add evidence when it materially supports future decisions.
-4. Append one short timeline entry only if the change is worth remembering historically.
-
-Never leave a disproven hypothesis or superseded decision written as current truth. Never silently promote a hypothesis to fact.
-
-### Keep it small
-
-Continuity should be cheaper to read than rediscovering the work.
-
-- Prefer concise bullets over prose.
-- Do not copy raw logs, large outputs, or information trivially recoverable from Git.
-- Do not store secrets, credentials, tokens, or chain-of-thought.
-- Point to artifacts instead of embedding them.
-- Remove duplicate or stale state.
-
-When the file becomes noisy (roughly >100 lines, or the timeline starts competing with current state), **consolidate** it: rewrite Current State/Memory to the latest truth, preserve important evidence, and collapse old timeline detail to only the few entries that still explain meaningful decisions or reversals.
-
-### Handoff
-
-Continuity is the canonical state; handoff should mostly point to it:
+Continuity is canonical. A handoff should mostly point to it:
 
 ```md
 ## Continuation
 - Continuity: `.continuity/<slug>.md`
-- Instruction: Read Continuity first and resume from `Current State > Next`.
+- Instruction: Read Continuity first and resume from `State > Next`.
 ```
 
-Avoid duplicating detailed state into the handoff. If they disagree, prefer the newer evidence and update Continuity.
+When work ends, set the final status, state, verification, and artifact references; clear obsolete blockers/next actions and consolidate stale history.
 
-### Close
+## Writer
 
-When work ends, set `Status` to `complete` or `abandoned`, record the final state and verification, clear obsolete blockers/next actions, and consolidate if needed.
+If a cheap `continuity_writer` is available, the main agent may delegate only the mechanical file mutation and must provide exact changes. The writer may read only the Continuity file; it must not investigate, modify source, decide what matters, or invent content.
 
-## Writer delegation
+## Quality test
 
-The main agent owns judgment: what is true, important, stale, or next. If a cheap `continuity_writer` subagent is available, delegate only the mechanical file edit.
-
-Give it the path plus exact changes. It may read only the target Continuity file and must not inspect the repo, investigate facts, modify source code, or invent content.
-
-Example delegation:
-
-```text
-Update Continuity only.
-Path: .continuity/<slug>.md
-Exact changes:
-- set Updated to <timestamp>
-- set Current State to <exact content>
-- add/remove these Memory items: <exact content>
-- add this Evidence: <exact content>
-- append this Timeline entry: <exact content, if any>
-Do not inspect the repo or infer missing information.
-```
-
-If no writer subagent is available, update the file directly using the same rules.
-
-## Test of quality
-
-A future competent agent with the workspace and this file—but none of the prior conversation—should be able to continue correctly after a quick read.
-
-If it must reconstruct current truth from a long history, Continuity is too noisy. If it must repeat substantial investigation, Continuity is missing something important.
+A competent future agent with the workspace and Continuity—but none of the prior conversation—should be able to identify the objective, trust the current state, find all intentional generated artifacts, avoid known dead ends, and execute the next action after a quick read.
