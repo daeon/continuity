@@ -51,7 +51,7 @@ It preserves things whose loss would cause meaningful rediscovery, mistakes, or 
 - blockers,
 - and the highest-value next action.
 
-The timeline is secondary. **Current state is canonical.**
+The timeline is secondary. **The current snapshot is canonical.**
 
 That distinction keeps Continuity useful instead of turning it into another context dump.
 
@@ -68,21 +68,21 @@ After an investigation, an agent might leave:
 ## Objective
 - [ ] Prevent malformed known FTP commands from bypassing validation
 
-## Current State
-- State: Parser fix implemented; focused tests pass.
+## State
+- Now: Parser fix implemented; focused tests pass.
 - Next: Run integration tests against lenient upstream server.
-- Blockers: none
+- Blocked: none
 
 ## Memory
 - Fact: Outer helper scans only SP-form commands. — Evidence: `src/ftp.c:545`
 - Decision: Reject malformed known-command separators instead of passthrough. — Why: prevents parser differential
 - Hypothesis: Some upstream servers accept non-SP separators. — Needs: integration test
 
-## Artifacts
+## Active Artifacts
 - `patches/ftp-parser-hardening.diff` — implementation patch for review
 - `reports/ftp-integration-results.md` — generated integration test report
 
-## Evidence
+## Current Evidence
 - `pytest tests/ftp_parser.py` — 47 passed at `abc1234`
 ```
 
@@ -147,7 +147,7 @@ A handoff should not duplicate the state. It should point to it:
 ```md
 ## Continuation
 - Continuity: `.continuity/ftp-parser-hardening.md`
-- Instruction: Read Continuity first and resume from `Current State > Next`.
+- Instruction: Read Continuity first and resume from `State > Next`.
 ```
 
 Continuity is the durable state. Handoff is just the routing message.
