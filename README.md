@@ -13,25 +13,84 @@
   <img alt="No database" src="https://img.shields.io/badge/database-none-06B6D4?style=flat-square" />
 </p>
 
+---
+
 # Continuity
 
 **Resume work, not conversation.**
 
-When a session ends or another agent takes over, the code may still be there, but the useful context isn't: what we learned, what failed, and what to do next.
+Coding agents are great at solving hard problems inside the context they have *right now*. Then the session ends, context gets compacted, another agent takes over, or you return tomorrow — and the expensive part of the work disappears.
 
-Continuity keeps that context in one small Markdown file per workstream. The next agent reads the current state and continues instead of repeating the investigation. No database, transcript archive, or background service.
+**Continuity gives an agent a tiny durable cold-resume state.** It keeps the minimum useful state of ongoing work in `.continuity/<slug>.md` so a future agent can resume without replaying the whole conversation or rediscovering the investigation.
 
-[SKILL.md](SKILL.md) defines the full format and rules. This README explains how to use it.
+```text
+session A                          session B
+─────────                          ─────────
+investigate ──┐                 ┌─ read state
+implement     ├─> Continuity ───┤  resume
+verify      ──┘   .md memory    └─ continue
+```
 
-## 🧭 When to use it
+No database. No embeddings. No vector store. No giant transcript.
 
-Use Continuity for work that may cross sessions or agents: an investigation, implementation, experiment, or anything with findings you'd rather not rediscover.
+Just the state that matters.
 
-Skip quick one-shot tasks and state that's already obvious from the workspace.
+## ✨ Why Continuity?
 
-## 🚀 Install and use
+Most agent memory systems try to remember **more**.
 
-Copy the downloaded `continuity` directory into a Codex skills location. From its parent directory:
+Continuity deliberately remembers **less — but better**.
+
+It preserves things whose loss would cause meaningful rediscovery, mistakes, or ambiguity:
+
+- what the agent is trying to accomplish,
+- what is true **now**,
+- important facts, decisions, hypotheses, and constraints,
+- evidence worth returning to,
+- references to generated artifacts,
+- blockers,
+- and the highest-value next action.
+
+The timeline is secondary. **The current snapshot is canonical.**
+
+That distinction keeps Continuity useful instead of turning it into another context dump.
+
+## 🧠 The idea in 30 seconds
+
+After an investigation, an agent might leave:
+
+```md
+# Continuity: ftp-parser-hardening
+
+- Status: active
+- Updated: 2026-08-12T16:10:00-07:00
+
+## Objective
+- [ ] Prevent malformed known FTP commands from bypassing validation
+
+## State
+- Now: Parser fix implemented; focused tests pass.
+- Next: Run integration tests against lenient upstream server.
+- Blocked: none
+
+## Memory
+- Fact: Outer helper scans only SP-form commands. — Evidence: `src/ftp.c:545`
+- Decision: Reject malformed known-command separators instead of passthrough. — Why: prevents parser differential
+- Hypothesis: Some upstream servers accept non-SP separators. — Needs: integration test
+
+## Active Artifacts
+- `patches/ftp-parser-hardening.diff` — implementation patch for review
+- `reports/ftp-integration-results.md` — generated integration test report
+
+## Current Evidence
+- `pytest tests/ftp_parser.py` — 47 passed at `abc1234`
+```
+
+A fresh agent does not need the old chat. It reads the current snapshot, checks only what could invalidate `State > Next`, and keeps going. It reads history only when needed.
+
+## 🚀 Install
+
+Copy the `continuity` directory into a Codex skills location, for example:
 
 ```bash
 mkdir -p ~/.agents/skills
@@ -40,93 +99,164 @@ cp -R continuity ~/.agents/skills/continuity
 
 Or keep it repo-scoped with your other project skills.
 
-Then ask:
+Then invoke it naturally when work should survive the current context:
 
 ```text
 Use continuity for this investigation.
+```
 
+```text
 Continue this work using the existing continuity file.
+```
 
+```text
 Update continuity before handing this off.
 ```
 
-Records live at `.continuity/<slug>.md` unless you provide another path. Keep one stable file per workstream. Use `~/.continuity/<slug>.md` only for work that isn't tied to a workspace.
+## ⚙️ How it behaves
 
-For projects where you regularly resume work, this optional line in `AGENTS.md` helps the agent find the record:
+Continuity has a deliberately small contract:
+
+1. **Read before resuming.** If a continuity file exists, read the current snapshot first. Check only what could invalidate `State > Next`, then continue. Read history only when needed.
+2. **Update the model, not the diary.** Record changes in durable understanding, not every command.
+3. **Keep current truth current.** Superseded facts and disproven hypotheses do not linger as truth.
+4. **Keep artifacts discoverable.** Reference every intentional generated artifact (except disposable temp/scratch files); mark superseded outputs instead of losing the pointer.
+5. **Point to evidence.** Reference commits, files, tests, PRs, or logs instead of copying them.
+6. **Consolidate aggressively.** If the file becomes noisy, compress history into the latest useful state.
+7. **Revalidate volatile state.** Branch, HEAD, tests, deployments, benchmarks, and PR status can go stale.
+
+## 🪶 Intentionally lightweight
+
+Continuity is not trying to be:
+
+| Not this | Instead |
+|---|---|
+| A transcript | A compressed work state |
+| A vector database | A Markdown file |
+| Chain-of-thought storage | Explicit facts and decisions |
+| Command logging | Evidence pointers |
+| Permanent truth | Revisable working memory |
+| A second project tracker | Just enough state to resume |
+
+The skill itself stays small because **a memory system that consumes too much context defeats its own purpose**.
+
+## 🔁 Continuity + handoff
+
+A handoff should not duplicate the state. It should point to it:
+
+```md
+## Continuation
+- Continuity: `.continuity/ftp-parser-hardening.md`
+- Instruction: Read Continuity first and resume from `State > Next`.
+```
+
+Continuity is the durable state. Handoff is just the routing message.
+
+## 🧩 Example lifecycle
+
+```text
+Start work
+   │
+   ▼
+Create .continuity/<slug>.md
+   │
+   ▼
+Investigate / build / test
+   │
+   ├── understanding changed? ── yes ──> update Continuity
+   │
+   ▼
+Context/session ends
+   │
+   ▼
+Future agent reads Continuity
+   │
+   ▼
+Check what could invalidate Next
+   │
+   ▼
+Resume from Next
+```
+
+## 🧭 Reliability rules
+
+Continuity follows a simple truth hierarchy:
+
+```text
+live workspace / authoritative source
+              >
+          Continuity
+              >
+        old conversation
+```
+
+If the record conflicts with the live workspace, verify the source of truth and repair Continuity. Preserve rejected approaches when repeating them would waste meaningful work or create risk. If multiple agents are active, serialize writes to one Continuity file or give each workstream its own file.
+
+### Generated artifacts are part of continuity
+
+Every intentional generated artifact should remain discoverable from the state file (excluding disposable temp/scratch files): generated files, patches, reports, plans, screenshots, benchmark outputs, PRs, commits, and other deliverables. Store a stable pointer and a one-line purpose—not the artifact contents. If a newer artifact replaces an older one, mark the old reference as superseded rather than erasing the trail.
+
+## 🛡️ Memory hygiene
+
+Continuity intentionally avoids storing:
+
+- secrets, credentials, or tokens,
+- private chain-of-thought,
+- giant logs and command output,
+- every command the agent ran,
+- information trivially recoverable from Git,
+- stale duplicate state.
+
+A useful test is simple:
+
+> **Would losing this information cause meaningful rediscovery, mistakes, or ambiguity?**
+
+If not, it probably does not belong in Continuity.
+
+## 💡 Design principle
+
+The quality bar is not “did we record everything?”
+
+It is:
+
+> **Can a competent future agent, with the workspace and this file but none of the previous conversation, continue correctly after a quick read?**
+
+If yes, Continuity is doing its job.
+
+## 🌱 Why this could become a useful primitive
+
+Continuity is deliberately generic. Debugging, implementation, research, experiments, migrations, performance investigations, and repo reviews all need the same underlying capability:
+
+**preserve the smallest reliable state needed to continue.**
+
+That makes Continuity useful as a shared memory layer beneath other agent skills instead of every workflow inventing its own logging format.
+
+## 🔌 Optional repo bootstrap
+
+For projects where cold-resume matters, add one lightweight instruction to `AGENTS.md`:
 
 ```md
 When resuming ongoing work, check `.continuity/` for relevant active state before rediscovering prior work.
 ```
 
-## 🔁 How it works
+This keeps discovery reliable without adding hooks, databases, or background services.
 
-The file has two parts. The **current snapshot** holds the objective, current state, useful memory, artifacts, evidence, and next action. The **change log** records meaningful findings, decisions, reversals, and failures.
+## 🤝 Contributing
 
-On resume:
+The best improvements make Continuity **smaller, clearer, or more reliable**.
 
-> Read the current snapshot. Check only what could invalidate `State > Next`, then continue from there. Read history only when needed.
+Good contributions include:
 
-The live workspace and authoritative sources still outrank the record. If they disagree, verify the source and repair Continuity. Don't repeat completed investigation without a reason.
+- better consolidation rules,
+- sharper resume behavior,
+- compatibility improvements across agent workflows,
+- real-world examples that expose failure modes,
+- reductions in unnecessary instruction/context cost.
 
-When understanding changes, update the snapshot and append a change-log entry. Record meaningful changes, not every command. Keep facts separate from hypotheses, and preserve failed approaches when repeating them would waste work.
+If a feature makes the skill significantly heavier, it should earn that complexity.
 
-Reference every intentional generated artifact, excluding disposable scratch files. Use paths, URLs, or IDs with a short purpose rather than embedding outputs. Mark superseded artifacts without losing their pointers.
+## ⭐ If this is useful
 
-Keep the snapshot compact. Older completed phases can become a historical summary, but useful evidence and artifact pointers stay. Use one writer per file, or separate files for independent workstreams. Never store secrets, credentials, private chain-of-thought, or giant logs.
+Star the repository so other agent builders can find it, and share the pattern with anyone building long-running Codex workflows.
 
-## 📝 Example
-
-A small fictional record, with illustrative paths and results:
-
-```md
-# Continuity: cache-refresh
-
-- Status: active
-- Updated: 2026-08-12T16:10:00-07:00
-
-## Objective
-Prevent stale cached values after an update.
-
-## State
-- Now: Invalidation fix implemented; focused tests pass.
-- Next: Run integration tests for updates across two workers.
-- Blocked: none
-
-## Memory
-- Fact: The update path skipped cache invalidation. — Evidence: `src/cache.py` at `abc1234`
-- Decision: Invalidate after a successful write. — Why: failed writes must not change cached state.
-- Hypothesis: Another worker may retain stale values. — Test: two-worker integration test.
-
-## Active Artifacts
-- `patches/cache-refresh.diff` — implementation patch for review
-
-## Current Evidence
-- `pytest tests/test_cache.py` — 12 passed at `def5678`; integration tests not run.
-
-## Change Log
-### 2026-08-12T16:10:00-07:00 - verification
-- Update: Focused tests passed after the invalidation fix.
-- Evidence: `pytest tests/test_cache.py` — 12 passed at `def5678`.
-- Artifacts: `patches/cache-refresh.diff` — patch under test.
-- Next: Run the two-worker integration test.
-```
-
-The next agent has a concrete starting point. It checks what matters for the integration test rather than reopening the whole investigation.
-
-## 🤝 Handoff and finish
-
-A handoff points to the record instead of copying it:
-
-```md
-## Continuation
-- Continuity: `.continuity/cache-refresh.md`
-- Instruction: Read Continuity first and resume from `State > Next`.
-```
-
-When work ends, set the final status, update verification and artifact references, append the final event, and clear obsolete blockers or next actions.
-
-## ✅ The practical test
-
-Give a fresh agent the workspace and Continuity file, without the old conversation. Can it find the artifacts, avoid known dead ends, and continue correctly after a quick read?
-
-That's the test. Keep changes that make this easier; don't add process just to remember more.
+**Resume work, not conversation.**
