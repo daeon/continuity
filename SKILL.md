@@ -73,7 +73,7 @@ Keep it compact. Omit empty sections.
 
 ## Rules
 
-1. **Resume first.** If relevant Continuity exists, read it before substantive work. Resume from `State > Next`; inspect evidence only as needed.
+1. **Resume first.** If relevant Continuity exists, read its current snapshot before substantive work. Check only what could invalidate `State > Next`, then continue from there. Read history only when needed.
 2. **Current truth wins.** Authoritative workspace/source state > Continuity > old conversation. If they conflict, verify and repair Continuity.
 3. **Update both layers.** When understanding changes, update `State` and `Memory`, then append one `Change Log` entry. Never silently promote a hypothesis to fact or leave superseded state as current truth.
 4. **Log meaningful transitions only.** Append an entry when scope, objective status, finding, contradiction, decision, blocker, risk, important artifact, verification result, handoff, or stop/resume state changes. Do not log routine commands or incidental activity.
